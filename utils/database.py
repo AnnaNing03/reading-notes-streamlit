@@ -9,17 +9,20 @@ def fetch_books(user_id: str) -> list[dict[str, str | int]]:
     """Fetch all books for a user, merging books table and notes."""
     client = get_supabase_client()
 
-    # Get books from books table (with author)
-    books_resp = (
-        client.table("books")
-        .select("book_name, author")
-        .eq("user_id", user_id)
-        .order("created_at", desc=True)
-        .execute()
-    )
+    # Get books from books table (with author) — table may not exist yet
     book_info: dict[str, str] = {}
-    for b in books_resp.data:
-        book_info[b["book_name"]] = b.get("author", "")
+    try:
+        books_resp = (
+            client.table("books")
+            .select("book_name, author")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        for b in books_resp.data:
+            book_info[b["book_name"]] = b.get("author", "")
+    except Exception:
+        pass  # books table may not exist yet
 
     # Get note counts
     notes_resp = (
