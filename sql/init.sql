@@ -43,3 +43,38 @@ create policy "Users can delete own notes"
 create index if not exists idx_notes_user_id on public.notes(user_id);
 create index if not exists idx_notes_user_book on public.notes(user_id, book_name);
 create index if not exists idx_notes_user_date on public.notes(user_id, date desc);
+
+-- =============================================
+-- 5. 创建 books 表（书架管理）
+-- =============================================
+create table if not exists public.books (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  book_name text not null,
+  author text not null default '',
+  created_at timestamptz not null default now()
+);
+
+-- 6. 启用 books 表的行级安全
+alter table public.books enable row level security;
+
+create policy "Users can read own books"
+  on public.books for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own books"
+  on public.books for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own books"
+  on public.books for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete own books"
+  on public.books for delete
+  using (auth.uid() = user_id);
+
+create index if not exists idx_books_user_id on public.books(user_id);
+-- 确保同一用户不会重复添加同名书籍
+create unique index if not exists idx_books_user_book on public.books(user_id, book_name);
