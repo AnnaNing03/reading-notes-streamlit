@@ -6,23 +6,65 @@ from utils.supabase_client import get_supabase_client
 
 
 def fetch_books(user_id: str) -> list[dict[str, str | int]]:
-    """Fetch distinct books with note counts for a user."""
+    """Fetch all books for a user, merging books table and notes."""
     client = get_supabase_client()
-    response = (
+
+    # Get books from books table (with author)
+    books_resp = (
+        client.table("books")
+        .select("book_name, author")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    book_info: dict[str, str] = {}
+    for b in books_resp.data:
+        book_info[b["book_name"]] = b.get("author", "")
+
+    # Get note counts
+    notes_resp = (
         client.table("notes")
         .select("book_name")
         .eq("user_id", user_id)
         .execute()
     )
     book_counts: dict[str, int] = {}
-    for note in response.data:
+    for note in notes_resp.data:
         name = note["book_name"]
         book_counts[name] = book_counts.get(name, 0) + 1
-    result: list[dict[str, str | int]] = [
-        {"book_name": name, "count": count}
-        for name, count in sorted(book_counts.items(), key=lambda x: -x[1])
-    ]
+
+    # Merge: all books from books table + any books that only appear in notes
+    all_book_names = set(book_info.keys()) | set(book_counts.keys())
+    result: list[dict[str, str | int]] = []
+    for name in all_book_names:
+        result.append({
+            "book_name": name,
+            "author": book_info.get(name, ""),
+            "count": book_counts.get(name, 0),
+        })
+    result.sort(key=lambda x: -int(x["count"]))
     return result
+
+
+def create_book(user_id: str, book_name: str, author: str) -> bool:
+    """Add a book to the user's bookshelf. Returns True on success."""
+    try:
+        client = get_supabase_client()
+        client.table("books").insert(
+            {
+                "user_id": user_id,
+                "book_name": book_name,
+                "author": author,
+            }
+        ).execute()
+        return True
+    except Exception as e:
+        err_msg = str(e)
+        if "duplicate" in err_msg.lower() or "unique" in err_msg.lower():
+            st.warning("这本书已经在书架上了")
+        else:
+            st.error(f"添加失败: {e}")
+        return False
 
 
 def fetch_notes(user_id: str, book_name: str | None = None) -> list[dict[str, Any]]:
@@ -89,17 +131,36 @@ def delete_note(note_id: str, user_id: str) -> bool:
         return False
 
 
-def fetch_notes_for_book(user_id: str, book_name: str) -> list[dict[str, Any]]:
-    """Fetch all notes for a specific book."""
+def fetch_notes_for_book(
+    user_id: str, book_name: str, time_range: str | None = None
+) -> list[dict[str, Any]]:
+    """Fetch notes for a specific book, optionally filtered by time range.
+
+    time_range: None (all), 'week', 'month', 'year'
+    """
     client = get_supabase_client()
-    response = (
+    query = (
         client.table("notes")
         .select("sentence, thought, date")
         .eq("user_id", user_id)
         .eq("book_name", book_name)
-        .order("date", desc=False)
-        .execute()
     )
+
+    if time_range:
+        from datetime import date as date_cls, timedelta
+        today = date_cls.today()
+        if time_range == "week":
+            start = today - timedelta(days=7)
+        elif time_range == "month":
+            start = today - timedelta(days=30)
+        elif time_range == "year":
+            start = today - timedelta(days=365)
+        else:
+            start = None
+        if start:
+            query = query.gte("date", start.isoformat())
+
+    response = query.order("date", desc=False).execute()
     return response.data
 
 
