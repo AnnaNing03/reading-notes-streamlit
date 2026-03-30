@@ -173,6 +173,7 @@ st.markdown(
 # ==========================================
 from utils.auth import check_auth, get_user_email, get_user_id, login, logout, register
 from utils.database import (
+    create_book,
     create_note,
     delete_note,
     fetch_books,
@@ -182,7 +183,7 @@ from utils.database import (
     fetch_notes_for_book,
     fetch_years,
 )
-from utils.poster import create_poster_image, generate_poster_content
+from utils.poster import POSTER_STYLES, create_poster_image, generate_poster_content
 
 # ==========================================
 # 4. Session State 初始化
@@ -267,7 +268,7 @@ def show_navigation() -> None:
     pages = [
         ("📚 书架", "书架"),
         ("✏️ 记录", "添加"),
-        ("📊 年度", "年度"),
+        ("🎨 总结", "总结"),
         ("👤 我的", "个人"),
     ]
 
@@ -293,6 +294,25 @@ def show_bookshelf() -> None:
     )
 
     user_id = get_user_id()
+
+    # 添加书本表单
+    with st.expander("➕ 添加新书到书架", expanded=False):
+        with st.form("add_book_form"):
+            new_book_name = st.text_input("书名 *", placeholder="请输入书名")
+            new_book_author = st.text_input("作者", placeholder="请输入作者（选填）")
+            if st.form_submit_button("添加到书架", use_container_width=True):
+                if not new_book_name or not new_book_name.strip():
+                    st.warning("请输入书名")
+                else:
+                    ok = create_book(
+                        user_id,
+                        new_book_name.strip(),
+                        new_book_author.strip() if new_book_author else "",
+                    )
+                    if ok:
+                        st.success(f"《{new_book_name.strip()}》已加入书架")
+                        st.rerun()
+
     books = fetch_books(user_id)
 
     if not books:
@@ -300,7 +320,7 @@ def show_bookshelf() -> None:
             '<div class="empty-state">'
             '<div class="icon">📚</div>'
             "<p>书架空空如也</p>"
-            '<p style="font-size:12px;">点击上方「✏️ 记录」添加第一条笔记吧</p>'
+            '<p style="font-size:12px;">点击上方「➕ 添加新书」开始吧</p>'
             "</div>",
             unsafe_allow_html=True,
         )
@@ -309,10 +329,12 @@ def show_bookshelf() -> None:
     # 渲染书架网格
     cols = st.columns(2)
     for i, book in enumerate(books):
+        author_text = f" · {book['author']}" if book.get("author") else ""
         with cols[i % 2]:
             st.markdown(
                 f"""<div class="book-card">
                     <div class="book-title">《{book['book_name']}》</div>
+                    <div class="book-count">{author_text}</div>
                     <div class="book-count">{book['count']} 条感悟</div>
                 </div>""",
                 unsafe_allow_html=True,
@@ -517,80 +539,100 @@ def show_add_note() -> None:
 
 
 # ===================================================================
-# 10. 页面 D: 年度书单
+# 10. 页面 D: 读书总结（AI 海报生成）
 # ===================================================================
-def show_annual_books() -> None:
+def show_summary() -> None:
     st.markdown(
-        "<h2 style='text-align:center; color:#582F0E;'>年度书单</h2>",
+        "<h2 style='text-align:center; color:#582F0E;'>读书总结</h2>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p style='text-align:center; color:#BCB4A8; font-size:13px; margin-bottom:20px;'>"
+        "选择一本书，AI 为你生成精美读书海报</p>",
         unsafe_allow_html=True,
     )
 
     user_id = get_user_id()
-    years = fetch_years(user_id)
+    books = fetch_books(user_id)
 
-    if not years:
+    if not books:
         st.markdown(
             '<div class="empty-state">'
-            '<div class="icon">📊</div>'
+            '<div class="icon">🎨</div>'
             "<p>还没有读书记录</p>"
-            '<p style="font-size:12px;">开始添加笔记，生成你的年度书单</p>'
+            '<p style="font-size:12px;">先去添加笔记，再来生成总结海报</p>'
             "</div>",
             unsafe_allow_html=True,
         )
         return
 
-    selected_year = st.selectbox(
-        "选择年份",
-        years,
-        format_func=lambda y: f"{y} 年",
-        key="year_select",
+    book_names = [str(b["book_name"]) for b in books]
+
+    # 选择书籍
+    selected_book = st.selectbox(
+        "📖 选择书籍",
+        book_names,
+        key="summary_book_select",
+        format_func=lambda x: f"《{x}》",
     )
 
-    if selected_year:
-        books = fetch_books_for_year(user_id, selected_year)
-        total_notes = sum(int(b["count"]) for b in books)
+    # 选择时间跨度
+    time_options = {
+        "全部": None,
+        "最近一周": "week",
+        "最近一个月": "month",
+        "最近一年": "year",
+    }
+    selected_time_label = st.selectbox(
+        "📅 时间范围",
+        list(time_options.keys()),
+        key="summary_time_select",
+    )
+    time_range = time_options[selected_time_label]
 
-        # 统计行
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown(
-                f'<div class="stats-card">'
-                f'<div class="stats-number">{len(books)}</div>'
-                f'<div class="stats-label">本书</div></div>',
-                unsafe_allow_html=True,
-            )
-        with col2:
-            st.markdown(
-                f'<div class="stats-card">'
-                f'<div class="stats-number">{total_notes}</div>'
-                f'<div class="stats-label">条笔记</div></div>',
-                unsafe_allow_html=True,
-            )
+    # 选择风格
+    style_names = list(POSTER_STYLES.keys())
+    selected_style = st.selectbox(
+        "🎨 海报风格",
+        style_names,
+        key="summary_style_select",
+    )
 
-        st.markdown("")  # 间距
+    # 显示该书在选定时间范围内的笔记数
+    if selected_book:
+        preview_notes = fetch_notes_for_book(user_id, selected_book, time_range)
+        st.markdown(
+            f"<p style='color:#8C6F56; font-size:13px;'>"
+            f"《{selected_book}》{selected_time_label}共有 <b>{len(preview_notes)}</b> 条笔记</p>",
+            unsafe_allow_html=True,
+        )
 
-        for book in books:
-            st.markdown(
-                f"""<div class="book-card" style="text-align:left; padding:16px 20px;">
-                    <div style="display:flex; justify-content:space-between;
-                        align-items:center;">
-                        <div>
-                            <div style="font-size:14px; font-weight:600;
-                                color:#582F0E;">《{book['book_name']}》</div>
-                            <div style="font-size:12px; color:#BCB4A8;
-                                margin-top:4px;">{book['count']} 条笔记</div>
-                        </div>
-                        <div style="color:#BCB4A8; font-size:16px;">›</div>
-                    </div>
-                </div>""",
-                unsafe_allow_html=True,
-            )
-            if st.button(
-                f"查看《{book['book_name']}》",
-                key=f"annual_book_{book['book_name']}",
-                use_container_width=True,
-            ):
-                navigate("详情", current_book=str(book["book_name"]))
+        if len(preview_notes) == 0:
+            st.info("该时间范围内没有笔记，请调整时间范围或先添加笔记")
+        else:
+            if st.button("✨ 生成读书海报", use_container_width=True, type="primary"):
+                with st.spinner("AI 正在为你生成海报文案..."):
+                    poster_content = generate_poster_content(
+                        selected_book, preview_notes, selected_style
+                    )
+                    if poster_content:
+                        st.session_state["summary_poster_content"] = poster_content
+                        st.session_state["summary_poster_book"] = selected_book
+                        st.session_state["summary_poster_style"] = selected_style
+                        st.rerun()
+
+    # 显示已生成的海报
+    poster_content = st.session_state.get("summary_poster_content")
+    poster_book = st.session_state.get("summary_poster_book")
+    if poster_content and poster_book:
+        st.markdown("---")
+        _show_poster_result(poster_content, poster_book)
+
+        if st.button("关闭海报", use_container_width=True, key="close_summary_poster"):
+            st.session_state.pop("summary_poster_content", None)
+            st.session_state.pop("summary_poster_book", None)
+            st.session_state.pop("summary_poster_style", None)
+            st.rerun()
 
 
 # ===================================================================
@@ -681,8 +723,8 @@ else:
         show_book_detail()
     elif page == "添加":
         show_add_note()
-    elif page == "年度":
-        show_annual_books()
+    elif page == "总结":
+        show_summary()
     elif page == "个人":
         show_profile()
     else:
