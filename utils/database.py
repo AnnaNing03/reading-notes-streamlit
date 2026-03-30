@@ -1,14 +1,10 @@
 from datetime import date
 from typing import Any
-
 import streamlit as st
 from utils.supabase_client import get_supabase_client
-
-
 def fetch_books(user_id: str) -> list[dict[str, str | int]]:
     """Fetch all books for a user, merging books table and notes."""
     client = get_supabase_client()
-
     # Get books from books table (with author) — table may not exist yet
     book_info: dict[str, str] = {}
     try:
@@ -23,7 +19,6 @@ def fetch_books(user_id: str) -> list[dict[str, str | int]]:
             book_info[b["book_name"]] = b.get("author", "")
     except Exception:
         pass  # books table may not exist yet
-
     # Get note counts
     notes_resp = (
         client.table("notes")
@@ -35,7 +30,6 @@ def fetch_books(user_id: str) -> list[dict[str, str | int]]:
     for note in notes_resp.data:
         name = note["book_name"]
         book_counts[name] = book_counts.get(name, 0) + 1
-
     # Merge: all books from books table + any books that only appear in notes
     all_book_names = set(book_info.keys()) | set(book_counts.keys())
     result: list[dict[str, str | int]] = []
@@ -47,8 +41,6 @@ def fetch_books(user_id: str) -> list[dict[str, str | int]]:
         })
     result.sort(key=lambda x: -int(x["count"]))
     return result
-
-
 def create_book(user_id: str, book_name: str, author: str) -> bool:
     """Add a book to the user's bookshelf. Returns True on success."""
     try:
@@ -68,8 +60,6 @@ def create_book(user_id: str, book_name: str, author: str) -> bool:
         else:
             st.error(f"添加失败: {e}")
         return False
-
-
 def fetch_notes(user_id: str, book_name: str | None = None) -> list[dict[str, Any]]:
     """Fetch notes for a user, optionally filtered by book name."""
     client = get_supabase_client()
@@ -79,8 +69,6 @@ def fetch_notes(user_id: str, book_name: str | None = None) -> list[dict[str, An
     query = query.order("date", desc=True)
     response = query.execute()
     return response.data
-
-
 def fetch_note_by_id(note_id: str, user_id: str) -> dict[str, Any] | None:
     """Fetch a single note by ID."""
     client = get_supabase_client()
@@ -94,8 +82,6 @@ def fetch_note_by_id(note_id: str, user_id: str) -> dict[str, Any] | None:
     if response.data:
         return response.data[0]
     return None
-
-
 def create_note(
     user_id: str,
     book_name: str,
@@ -119,8 +105,6 @@ def create_note(
     except Exception as e:
         st.error(f"保存失败: {e}")
         return False
-
-
 def delete_note(note_id: str, user_id: str) -> bool:
     """Delete a note. Returns True on success."""
     try:
@@ -132,13 +116,10 @@ def delete_note(note_id: str, user_id: str) -> bool:
     except Exception as e:
         st.error(f"删除失败: {e}")
         return False
-
-
 def fetch_notes_for_book(
     user_id: str, book_name: str, time_range: str | None = None
 ) -> list[dict[str, Any]]:
     """Fetch notes for a specific book, optionally filtered by time range.
-
     time_range: None (all), 'week', 'month', 'year'
     """
     client = get_supabase_client()
@@ -148,7 +129,6 @@ def fetch_notes_for_book(
         .eq("user_id", user_id)
         .eq("book_name", book_name)
     )
-
     if time_range:
         from datetime import date as date_cls, timedelta
         today = date_cls.today()
@@ -162,11 +142,8 @@ def fetch_notes_for_book(
             start = None
         if start:
             query = query.gte("date", start.isoformat())
-
     response = query.order("date", desc=False).execute()
     return response.data
-
-
 def fetch_years(user_id: str) -> list[str]:
     """Fetch distinct years from user's notes."""
     client = get_supabase_client()
@@ -178,8 +155,6 @@ def fetch_years(user_id: str) -> list[str]:
         if note.get("date"):
             years.add(note["date"][:4])
     return sorted(years, reverse=True)
-
-
 def fetch_books_for_year(
     user_id: str, year: str
 ) -> list[dict[str, str | int]]:
