@@ -7,8 +7,17 @@ from openai import OpenAI
 from PIL import Image, ImageDraw, ImageFont
 
 
+# 海报风格描述
+POSTER_STYLES: dict[str, str] = {
+    "简约文艺": "风格简洁文艺，用词精炼优美，注重留白和意境",
+    "温暖治愈": "风格温暖治愈，语调柔和亲切，给人力量和安慰",
+    "思考深度": "风格深刻理性，强调思考和洞察，有哲学感",
+    "活泼日常": "风格轻松活泼，接地气，像朋友分享一本好书",
+}
+
+
 def generate_poster_content(
-    book_name: str, notes: list[dict[str, Any]]
+    book_name: str, notes: list[dict[str, Any]], style: str = "简约文艺"
 ) -> dict[str, str] | None:
     """Call DeepSeek API to generate poster content from notes."""
     api_key = st.secrets.get("DEEPSEEK_API_KEY", "")
@@ -21,15 +30,18 @@ def generate_poster_content(
         for i, n in enumerate(notes)
     )
 
-    prompt = f"""你是一位文学评论家和读书博主。以下是用户阅读《{book_name}》时记录的所有笔记：
+    style_desc = POSTER_STYLES.get(style, POSTER_STYLES["简约文艺"])
+
+    prompt = f"""你是一位文学评论家和读书博主。以下是用户阅读《{book_name}》时记录的笔记：
 
 {notes_text}
 
-请基于以上笔记，生成以下内容（用 JSON 格式返回）：
+请基于以上笔记，以「{style_desc}」的风格，生成以下内容（用 JSON 格式返回）：
 1. "title": 一个吸引人的标题（不超过10个字）
 2. "quote": 最精彩的一句金句（从摘抄中选出，原文引用）
-3. "summary": 整体感悟（用一段话总结，基于所有想法，100字以内）
-4. "insight": 个人思考精华（一句话概括用户的核心启发，30字以内）
+3. "keywords": 3-5个关键词，用顿号分隔（总结这本书的核心主题）
+4. "summary": 整体感悟（用一段话总结，基于所有想法，100字以内）
+5. "insight": 个人思考精华（一句话概括用户的核心启发，30字以内）
 
 请只返回 JSON 对象，不要包含其他文字。"""
 
@@ -166,6 +178,17 @@ def create_poster_image(
         draw.text((x, y_pos), line, fill="#4a4a4a", font=quote_font)
         y_pos += 35
     y_pos += 40
+
+    # Keywords section
+    keywords = content.get("keywords", "")
+    if keywords:
+        draw.text((padding, y_pos), "关键词", fill="#8a8a8a", font=label_font)
+        y_pos += 30
+        kw_lines = _wrap_text(keywords, body_font, content_width, draw)
+        for line in kw_lines:
+            draw.text((padding, y_pos), line, fill="#6a5a4a", font=body_font)
+            y_pos += 32
+        y_pos += 20
 
     # Summary section
     draw.text((padding, y_pos), "整体感悟", fill="#8a8a8a", font=label_font)
