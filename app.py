@@ -331,16 +331,8 @@ def show_bookshelf() -> None:
     for i, book in enumerate(books):
         author_text = f" · {book['author']}" if book.get("author") else ""
         with cols[i % 2]:
-            st.markdown(
-                f"""<div class="book-card">
-                    <div class="book-title">《{book['book_name']}》</div>
-                    <div class="book-count">{author_text}</div>
-                    <div class="book-count">{book['count']} 条感悟</div>
-                </div>""",
-                unsafe_allow_html=True,
-            )
             if st.button(
-                f"打开《{book['book_name']}》",
+                f"《{book['book_name']}》\n{author_text}\n{book['count']} 条感悟",
                 key=f"book_btn_{i}",
                 use_container_width=True,
             ):
@@ -508,7 +500,7 @@ def show_add_note() -> None:
     user_id = get_user_id()
 
     with st.form("add_note_form"):
-        book_name = st.text_input("书名 *", placeholder="请输入书名")
+        book_name = st.text_input("作品 *", placeholder="请输入作品名称")
         sentence = st.text_area(
             "摘抄金句 *", placeholder="记录下触动你的句子...", height=120
         )
