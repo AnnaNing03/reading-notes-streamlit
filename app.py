@@ -34,32 +34,71 @@ st.markdown(
         max-width: 512px !important;
     }
 
-    /* 书架卡片样式 */
+    /* 书架容器 */
+    .bookshelf {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        justify-content: center;
+        padding: 20px 10px 12px;
+        position: relative;
+    }
+    .bookshelf::after {
+        content: '';
+        display: block;
+        width: 100%;
+        height: 10px;
+        background: linear-gradient(180deg, #C4A882 0%, #A8865C 40%, #8B6E47 100%);
+        border-radius: 0 0 4px 4px;
+        box-shadow: 0 4px 8px rgba(100, 70, 40, 0.25);
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+    }
+
+    /* 书本卡片（竖立书脊样式） */
     .book-card {
-        background: white;
-        padding: 20px 15px;
-        border-radius: 18px;
-        border: 1px solid #EAE2D6;
-        box-shadow: 0 4px 15px rgba(140, 111, 86, 0.08);
+        width: 110px;
+        min-height: 160px;
+        border-radius: 4px 10px 10px 4px;
+        padding: 16px 10px 12px;
         text-align: center;
-        transition: all 0.3s ease;
-        margin-bottom: 8px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 3px 3px 8px rgba(80, 50, 20, 0.18), inset -2px 0 4px rgba(0,0,0,0.06);
+        border-left: 5px solid rgba(0,0,0,0.12);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+        position: relative;
     }
     .book-card:hover {
-        border-color: #D4A373;
-        background-color: #FFFEFA;
-        box-shadow: 0 6px 20px rgba(140, 111, 86, 0.15);
+        transform: translateY(-6px);
+        box-shadow: 4px 8px 16px rgba(80, 50, 20, 0.25), inset -2px 0 4px rgba(0,0,0,0.06);
     }
     .book-title {
-        font-size: 1.15em;
+        font-size: 0.85em;
         font-weight: 700;
-        color: #582F0E;
-        margin-bottom: 5px;
+        color: #FFFFFF;
+        line-height: 1.3;
+        word-break: break-all;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .book-author {
+        font-size: 0.65em;
+        color: rgba(255,255,255,0.8);
+        margin-top: 2px;
     }
     .book-count {
-        font-size: 0.75em;
-        color: #BCB4A8;
+        font-size: 0.6em;
+        color: rgba(255,255,255,0.7);
         letter-spacing: 1px;
+        margin-top: auto;
+        padding-top: 6px;
+        border-top: 1px solid rgba(255,255,255,0.2);
+        width: 100%;
     }
 
     /* 笔记气泡样式 */
@@ -326,13 +365,46 @@ def show_bookshelf() -> None:
         )
         return
 
-    # 渲染书架网格
-    cols = st.columns(2)
+    # 书本配色方案（循环使用）
+    book_colors = [
+        "#8B4513",  # 棕褐色
+        "#2F4F4F",  # 暗石板灰
+        "#800020",  # 勃良第红
+        "#1B4332",  # 深绿
+        "#3B3B6D",  # 暗蓝
+        "#704214",  # 赫色
+        "#5C4033",  # 深咖啡
+        "#4A0E4E",  # 深紫
+    ]
+
+    # 渲染书架
+    books_html = ""
     for i, book in enumerate(books):
-        author_text = f" · {book['author']}" if book.get("author") else ""
-        with cols[i % 2]:
+        color = book_colors[i % len(book_colors)]
+        author_html = (
+            f'<div class="book-author">{book["author"]}</div>'
+            if book.get("author")
+            else ""
+        )
+        books_html += f"""<div class="book-card" style="background: linear-gradient(135deg, {color} 0%, {color}dd 100%);" data-book-idx="{i}">
+            <div class="book-title">《{book['book_name']}》</div>
+            {author_html}
+            <div class="book-count">{book['count']} 条感悟</div>
+        </div>"""
+
+    st.markdown(
+        f'<div class="bookshelf">{books_html}</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("")  # 间距
+
+    # 用 Streamlit 按钮实现点击进入（小字按钮）
+    cols = st.columns(min(len(books), 4))
+    for i, book in enumerate(books):
+        with cols[i % min(len(books), 4)]:
             if st.button(
-                f"《{book['book_name']}》\n{author_text}\n{book['count']} 条感悟",
+                f"打开《{book['book_name']}》",
                 key=f"book_btn_{i}",
                 use_container_width=True,
             ):
