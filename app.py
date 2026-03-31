@@ -1,6 +1,5 @@
 import streamlit as st
 from datetime import date
-
 # ==========================================
 # 1. 页面配置
 # ==========================================
@@ -10,7 +9,6 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed",
 )
-
 # ==========================================
 # 2. 极致精修 CSS
 # ==========================================
@@ -22,18 +20,15 @@ st.markdown(
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-
     /* 全局背景 */
     .stApp {
         background-color: #FDFCF8;
     }
-
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 2rem !important;
         max-width: 512px !important;
     }
-
     /* 书架中的书本按钮（secondary 类型按钮在列内） */
     div[data-testid="stColumn"] button[kind="secondary"] {
         min-height: 170px !important;
@@ -62,7 +57,6 @@ st.markdown(
     div[data-testid="stColumn"] button[kind="secondary"]:focus {
         color: #FFFFFF !important;
     }
-
     /* 书架木板 */
     .shelf-board {
         height: 12px;
@@ -71,7 +65,6 @@ st.markdown(
         box-shadow: 0 4px 8px rgba(100, 70, 40, 0.3);
         margin: -8px 0 20px;
     }
-
     /* 笔记气泡样式 */
     .note-bubble {
         background: #FFFFFF;
@@ -81,7 +74,6 @@ st.markdown(
         border-left: 4px solid #D4A373;
         box-shadow: 2px 4px 12px rgba(0,0,0,0.03);
     }
-
     /* 统计卡片 */
     .stats-card {
         background: white;
@@ -101,7 +93,6 @@ st.markdown(
         color: #BCB4A8;
         letter-spacing: 1px;
     }
-
     /* 个人中心卡片 */
     .profile-card {
         background: white;
@@ -111,7 +102,6 @@ st.markdown(
         border: 1px solid #EAE2D6;
         margin-bottom: 16px;
     }
-
     /* 海报预览 */
     .poster-preview {
         background: linear-gradient(135deg, #FDFCF8 0%, #f0e6d3 100%);
@@ -120,13 +110,11 @@ st.markdown(
         margin: 12px 0;
         border: 1px solid #EAE2D6;
     }
-
     /* 表单元素圆角 */
     .stButton > button {
         border-radius: 12px !important;
         font-size: 14px !important;
     }
-
     .stTextInput > div > div > input,
     .stTextArea > div > div > textarea,
     .stDateInput > div > div > input,
@@ -134,7 +122,6 @@ st.markdown(
         border-radius: 12px !important;
         border-color: #EAE2D6 !important;
     }
-
     /* 认证页面样式 */
     .auth-header {
         text-align: center;
@@ -149,7 +136,6 @@ st.markdown(
         color: #8C6F56;
         font-size: 14px;
     }
-
     /* 空状态 */
     .empty-state {
         text-align: center;
@@ -164,7 +150,6 @@ st.markdown(
         font-size: 14px;
         margin-top: 12px;
     }
-
     /* 节标签 */
     .section-label {
         font-size: 11px;
@@ -177,7 +162,6 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
-
 # ==========================================
 # 3. 导入工具模块
 # ==========================================
@@ -194,7 +178,6 @@ from utils.database import (
     fetch_years,
 )
 from utils.poster import POSTER_STYLES, create_poster_image, generate_poster_content
-
 # ==========================================
 # 4. Session State 初始化
 # ==========================================
@@ -202,16 +185,12 @@ if "page" not in st.session_state:
     st.session_state["page"] = "书架"
 if "user" not in st.session_state:
     st.session_state["user"] = None
-
-
 def navigate(page: str, **kwargs: object) -> None:
     """导航到指定页面"""
     st.session_state["page"] = page
     for k, v in kwargs.items():
         st.session_state[k] = v
     st.rerun()
-
-
 # ===================================================================
 # 5. 认证页面（登录/注册）
 # ===================================================================
@@ -224,9 +203,7 @@ def show_auth_page() -> None:
         "</div>",
         unsafe_allow_html=True,
     )
-
     tab_login, tab_register = st.tabs(["登录", "注册"])
-
     with tab_login:
         with st.form("login_form"):
             email = st.text_input("邮箱", placeholder="请输入邮箱", key="login_email")
@@ -243,7 +220,6 @@ def show_auth_page() -> None:
                         st.error(f"登录失败: {err}")
                 else:
                     st.warning("请填写邮箱和密码")
-
     with tab_register:
         with st.form("register_form"):
             email = st.text_input("邮箱", placeholder="请输入邮箱", key="reg_email")
@@ -267,8 +243,6 @@ def show_auth_page() -> None:
                             st.error(f"注册失败: {err}")
                 else:
                     st.warning("请填写邮箱和密码")
-
-
 # ===================================================================
 # 6. 导航栏
 # ===================================================================
@@ -281,7 +255,6 @@ def show_navigation() -> None:
         ("🎨 总结", "总结"),
         ("👤 我的", "个人"),
     ]
-
     cols = st.columns(len(pages))
     for col, (label, page_name) in zip(cols, pages):
         with col:
@@ -292,8 +265,6 @@ def show_navigation() -> None:
                 st.session_state.pop("poster_content", None)
                 st.session_state.pop("poster_book", None)
                 navigate(page_name)
-
-
 # ===================================================================
 # 7. 页面 A: 我的书架
 # ===================================================================
@@ -302,9 +273,7 @@ def show_bookshelf() -> None:
         "<h2 style='text-align:center; color:#582F0E;'>我的私藏书架</h2>",
         unsafe_allow_html=True,
     )
-
     user_id = get_user_id()
-
     # 添加书本表单
     with st.expander("➕ 添加新书到书架", expanded=False):
         with st.form("add_book_form"):
@@ -322,9 +291,7 @@ def show_bookshelf() -> None:
                     if ok:
                         st.success(f"《{new_book_name.strip()}》已加入书架")
                         st.rerun()
-
     books = fetch_books(user_id)
-
     if not books:
         st.markdown(
             '<div class="empty-state">'
@@ -335,7 +302,6 @@ def show_bookshelf() -> None:
             unsafe_allow_html=True,
         )
         return
-
     # 书本配色方案（循环使用）
     book_colors = [
         "#8B4513",  # 棕褐色
@@ -347,7 +313,6 @@ def show_bookshelf() -> None:
         "#5C4033",  # 深咖啡
         "#4A0E4E",  # 深紫
     ]
-
     # 为每本书注入独立的背景色（通过 nth-child CSS）
     color_css = ""
     for idx, color in enumerate(book_colors):
@@ -358,7 +323,6 @@ def show_bookshelf() -> None:
         }}
         """
     st.markdown(f"<style>{color_css}</style>", unsafe_allow_html=True)
-
     # 渲染书架网格：每本书是一个可点击的按钮
     num_cols = min(len(books), 3)
     cols = st.columns(num_cols)
@@ -374,24 +338,19 @@ def show_bookshelf() -> None:
                 use_container_width=True,
             ):
                 navigate("详情", current_book=str(book["book_name"]))
-
     # 木质书架板
     st.markdown('<div class="shelf-board"></div>', unsafe_allow_html=True)
-
-
 # ===================================================================
 # 8. 页面 B: 书籍详情页
 # ===================================================================
 def show_book_detail() -> None:
     book_name: str = st.session_state.get("current_book", "")
     user_id = get_user_id()
-
     if not book_name:
         st.warning("未选择书籍")
         if st.button("返回书架"):
             navigate("书架")
         return
-
     # 顶部导航
     col1, col2 = st.columns([1, 1])
     with col1:
@@ -409,17 +368,14 @@ def show_book_detail() -> None:
                         st.session_state["poster_content"] = poster_content
                         st.session_state["poster_book"] = book_name
                         st.rerun()
-
     st.markdown(
         f"<h3 style='color:#582F0E; margin-bottom:4px;'>📖 {book_name}</h3>",
         unsafe_allow_html=True,
     )
-
     # 显示海报（如果已生成）
     poster_content = st.session_state.get("poster_content")
     if poster_content and st.session_state.get("poster_book") == book_name:
         _show_poster_result(poster_content, book_name)
-
     # 记录区
     with st.expander("🖋️ 记录此刻灵感", expanded=False):
         with st.form("add_note_detail_form"):
@@ -442,7 +398,6 @@ def show_book_detail() -> None:
                     if ok:
                         st.success("已编入笔记")
                         st.rerun()
-
     # 笔记流
     notes = fetch_notes(user_id, book_name=book_name)
     if not notes:
@@ -454,13 +409,11 @@ def show_book_detail() -> None:
             unsafe_allow_html=True,
         )
         return
-
     st.markdown(
         f"<p style='color:#BCB4A8; font-size:0.85em; margin-bottom:12px;'>"
         f"共 {len(notes)} 条感悟</p>",
         unsafe_allow_html=True,
     )
-
     for note in notes:
         st.markdown(
             f"""<div class="note-bubble">
@@ -476,8 +429,6 @@ def show_book_detail() -> None:
             if delete_note(note["id"], user_id):
                 st.success("已删除")
                 st.rerun()
-
-
 def _show_poster_result(poster_content: dict, book_name: str) -> None:
     """展示海报预览和下载按钮"""
     st.markdown("#### 📄 海报预览")
@@ -506,7 +457,6 @@ def _show_poster_result(poster_content: dict, book_name: str) -> None:
         </div>""",
         unsafe_allow_html=True,
     )
-
     # 生成可下载图片
     with st.spinner("正在生成海报图片..."):
         img_bytes = create_poster_image(
@@ -521,13 +471,10 @@ def _show_poster_result(poster_content: dict, book_name: str) -> None:
             mime="image/png",
             use_container_width=True,
         )
-
     if st.button("关闭海报", use_container_width=True, key="close_poster"):
         st.session_state.pop("poster_content", None)
         st.session_state.pop("poster_book", None)
         st.rerun()
-
-
 # ===================================================================
 # 9. 页面 C: 添加笔记
 # ===================================================================
@@ -536,9 +483,7 @@ def show_add_note() -> None:
         "<h2 style='text-align:center; color:#582F0E;'>记录此刻灵感</h2>",
         unsafe_allow_html=True,
     )
-
     user_id = get_user_id()
-
     with st.form("add_note_form"):
         book_name = st.text_input("作品 *", placeholder="请输入作品名称")
         sentence = st.text_area(
@@ -549,7 +494,6 @@ def show_add_note() -> None:
         )
         note_date = st.date_input("日期", value=date.today())
         submitted = st.form_submit_button("保存笔记", use_container_width=True)
-
         if submitted:
             if not book_name or not book_name.strip():
                 st.warning("请输入书名")
@@ -568,8 +512,6 @@ def show_add_note() -> None:
                 if ok:
                     st.success("保存成功！")
                     navigate("书架")
-
-
 # ===================================================================
 # 10. 页面 D: 读书总结（AI 海报生成）
 # ===================================================================
@@ -583,10 +525,8 @@ def show_summary() -> None:
         "选择一本书，AI 为你生成精美读书海报</p>",
         unsafe_allow_html=True,
     )
-
     user_id = get_user_id()
     books = fetch_books(user_id)
-
     if not books:
         st.markdown(
             '<div class="empty-state">'
@@ -597,9 +537,7 @@ def show_summary() -> None:
             unsafe_allow_html=True,
         )
         return
-
     book_names = [str(b["book_name"]) for b in books]
-
     # 选择书籍
     selected_book = st.selectbox(
         "📖 选择书籍",
@@ -607,7 +545,6 @@ def show_summary() -> None:
         key="summary_book_select",
         format_func=lambda x: f"《{x}》",
     )
-
     # 选择时间跨度
     time_options = {
         "全部": None,
@@ -621,7 +558,6 @@ def show_summary() -> None:
         key="summary_time_select",
     )
     time_range = time_options[selected_time_label]
-
     # 选择风格
     style_names = list(POSTER_STYLES.keys())
     selected_style = st.selectbox(
@@ -629,7 +565,6 @@ def show_summary() -> None:
         style_names,
         key="summary_style_select",
     )
-
     # 显示该书在选定时间范围内的笔记数
     if selected_book:
         preview_notes = fetch_notes_for_book(user_id, selected_book, time_range)
@@ -638,7 +573,6 @@ def show_summary() -> None:
             f"《{selected_book}》{selected_time_label}共有 <b>{len(preview_notes)}</b> 条笔记</p>",
             unsafe_allow_html=True,
         )
-
         if len(preview_notes) == 0:
             st.info("该时间范围内没有笔记，请调整时间范围或先添加笔记")
         else:
@@ -652,21 +586,17 @@ def show_summary() -> None:
                         st.session_state["summary_poster_book"] = selected_book
                         st.session_state["summary_poster_style"] = selected_style
                         st.rerun()
-
     # 显示已生成的海报
     poster_content = st.session_state.get("summary_poster_content")
     poster_book = st.session_state.get("summary_poster_book")
     if poster_content and poster_book:
         st.markdown("---")
         _show_poster_result(poster_content, poster_book)
-
         if st.button("关闭海报", use_container_width=True, key="close_summary_poster"):
             st.session_state.pop("summary_poster_content", None)
             st.session_state.pop("summary_poster_book", None)
             st.session_state.pop("summary_poster_style", None)
             st.rerun()
-
-
 # ===================================================================
 # 11. 页面 E: 个人中心
 # ===================================================================
@@ -675,10 +605,8 @@ def show_profile() -> None:
         "<h2 style='text-align:center; color:#582F0E;'>个人中心</h2>",
         unsafe_allow_html=True,
     )
-
     email = get_user_email()
     user_id = get_user_id()
-
     # 用户信息卡
     st.markdown(
         f"""<div class="profile-card">
@@ -696,7 +624,6 @@ def show_profile() -> None:
         </div>""",
         unsafe_allow_html=True,
     )
-
     # 统计概览
     books = fetch_books(user_id)
     total_notes = sum(int(b["count"]) for b in books)
@@ -715,14 +642,11 @@ def show_profile() -> None:
             f'<div class="stats-label">条笔记</div></div>',
             unsafe_allow_html=True,
         )
-
     st.markdown("")  # 间距
-
     if st.button("退出登录", use_container_width=True, type="primary"):
         logout()
         st.session_state["page"] = "书架"
         st.rerun()
-
     # 关于
     st.markdown(
         """<div class="profile-card" style="margin-top:16px;">
@@ -735,8 +659,6 @@ def show_profile() -> None:
         </div>""",
         unsafe_allow_html=True,
     )
-
-
 # ===================================================================
 # 12. 主路由
 # ===================================================================
@@ -744,11 +666,9 @@ if not check_auth():
     show_auth_page()
 else:
     page = st.session_state.get("page", "书架")
-
     # 详情页不显示导航栏（有自己的返回按钮）
     if page != "详情":
         show_navigation()
-
     if page == "书架":
         show_bookshelf()
     elif page == "详情":
