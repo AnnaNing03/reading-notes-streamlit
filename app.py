@@ -34,71 +34,42 @@ st.markdown(
         max-width: 512px !important;
     }
 
-    /* 书架容器 */
-    .bookshelf {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 14px;
-        justify-content: center;
-        padding: 20px 10px 12px;
-        position: relative;
+    /* 书架中的书本按钮（secondary 类型按钮在列内） */
+    div[data-testid="stColumn"] button[kind="secondary"] {
+        min-height: 170px !important;
+        border-radius: 4px 10px 10px 4px !important;
+        border: none !important;
+        border-left: 5px solid rgba(0,0,0,0.15) !important;
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        white-space: pre-line !important;
+        line-height: 1.5 !important;
+        box-shadow: 3px 3px 8px rgba(80, 50, 20, 0.2), inset -2px 0 6px rgba(0,0,0,0.08) !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+        padding: 18px 12px !important;
     }
-    .bookshelf::after {
-        content: '';
-        display: block;
-        width: 100%;
-        height: 10px;
-        background: linear-gradient(180deg, #C4A882 0%, #A8865C 40%, #8B6E47 100%);
-        border-radius: 0 0 4px 4px;
-        box-shadow: 0 4px 8px rgba(100, 70, 40, 0.25);
-        position: absolute;
-        bottom: -2px;
-        left: 0;
+    div[data-testid="stColumn"] button[kind="secondary"]:hover {
+        transform: translateY(-6px) !important;
+        box-shadow: 4px 10px 20px rgba(80, 50, 20, 0.3), inset -2px 0 6px rgba(0,0,0,0.08) !important;
+        border-left: 5px solid rgba(0,0,0,0.2) !important;
+        color: #FFFFFF !important;
+    }
+    div[data-testid="stColumn"] button[kind="secondary"]:active {
+        transform: translateY(-2px) !important;
+        color: #FFFFFF !important;
+    }
+    div[data-testid="stColumn"] button[kind="secondary"]:focus {
+        color: #FFFFFF !important;
     }
 
-    /* 书本卡片（竖立书脊样式） */
-    .book-card {
-        width: 110px;
-        min-height: 160px;
-        border-radius: 4px 10px 10px 4px;
-        padding: 16px 10px 12px;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        gap: 6px;
-        box-shadow: 3px 3px 8px rgba(80, 50, 20, 0.18), inset -2px 0 4px rgba(0,0,0,0.06);
-        border-left: 5px solid rgba(0,0,0,0.12);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        cursor: pointer;
-        position: relative;
-    }
-    .book-card:hover {
-        transform: translateY(-6px);
-        box-shadow: 4px 8px 16px rgba(80, 50, 20, 0.25), inset -2px 0 4px rgba(0,0,0,0.06);
-    }
-    .book-title {
-        font-size: 0.85em;
-        font-weight: 700;
-        color: #FFFFFF;
-        line-height: 1.3;
-        word-break: break-all;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    }
-    .book-author {
-        font-size: 0.65em;
-        color: rgba(255,255,255,0.8);
-        margin-top: 2px;
-    }
-    .book-count {
-        font-size: 0.6em;
-        color: rgba(255,255,255,0.7);
-        letter-spacing: 1px;
-        margin-top: auto;
-        padding-top: 6px;
-        border-top: 1px solid rgba(255,255,255,0.2);
-        width: 100%;
+    /* 书架木板 */
+    .shelf-board {
+        height: 12px;
+        background: linear-gradient(180deg, #C4A882 0%, #A8865C 40%, #8B6E47 100%);
+        border-radius: 0 0 4px 4px;
+        box-shadow: 0 4px 8px rgba(100, 70, 40, 0.3);
+        margin: -8px 0 20px;
     }
 
     /* 笔记气泡样式 */
@@ -314,7 +285,7 @@ def show_navigation() -> None:
     cols = st.columns(len(pages))
     for col, (label, page_name) in zip(cols, pages):
         with col:
-            btn_type = "primary" if current == page_name else "secondary"
+            btn_type = "primary"
             if st.button(label, key=f"nav_{page_name}", use_container_width=True, type=btn_type):
                 # Clear sub-page state when navigating
                 st.session_state.pop("current_book", None)
@@ -377,38 +348,35 @@ def show_bookshelf() -> None:
         "#4A0E4E",  # 深紫
     ]
 
-    # 渲染书架
-    books_html = ""
+    # 为每本书注入独立的背景色（通过 nth-child CSS）
+    color_css = ""
+    for idx, color in enumerate(book_colors):
+        n = len(book_colors)
+        color_css += f"""
+        div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child({n}n+{idx + 1}) button[kind="secondary"] {{
+            background: linear-gradient(145deg, {color} 0%, {color}cc 100%) !important;
+        }}
+        """
+    st.markdown(f"<style>{color_css}</style>", unsafe_allow_html=True)
+
+    # 渲染书架网格：每本书是一个可点击的按钮
+    num_cols = min(len(books), 3)
+    cols = st.columns(num_cols)
     for i, book in enumerate(books):
-        color = book_colors[i % len(book_colors)]
-        author_html = (
-            f'<div class="book-author">{book["author"]}</div>'
-            if book.get("author")
-            else ""
-        )
-        books_html += f"""<div class="book-card" style="background: linear-gradient(135deg, {color} 0%, {color}dd 100%);" data-book-idx="{i}">
-            <div class="book-title">《{book['book_name']}》</div>
-            {author_html}
-            <div class="book-count">{book['count']} 条感悟</div>
-        </div>"""
-
-    st.markdown(
-        f'<div class="bookshelf">{books_html}</div>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown("")  # 间距
-
-    # 用 Streamlit 按钮实现点击进入（小字按钮）
-    cols = st.columns(min(len(books), 4))
-    for i, book in enumerate(books):
-        with cols[i % min(len(books), 4)]:
+        with cols[i % num_cols]:
+            author = str(book.get("author", ""))
+            author_line = f"\n{author}" if author else ""
+            count = int(book["count"])
+            label = f"《{book['book_name']}》{author_line}\n\n{count} 条感悟"
             if st.button(
-                f"打开《{book['book_name']}》",
+                label,
                 key=f"book_btn_{i}",
                 use_container_width=True,
             ):
                 navigate("详情", current_book=str(book["book_name"]))
+
+    # 木质书架板
+    st.markdown('<div class="shelf-board"></div>', unsafe_allow_html=True)
 
 
 # ===================================================================
